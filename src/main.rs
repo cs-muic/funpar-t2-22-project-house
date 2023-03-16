@@ -5,6 +5,7 @@ mod cli;
 
 fn main() {
     let args: Args = Args::parse();
-    let img = image::open(args.img_path).expect("no file found lol");
+    let img = image::open(args.img_path).expect("no file found");
+
     dbg!(img);
 }
