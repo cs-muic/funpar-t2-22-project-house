@@ -1,3 +1,10 @@
+use clap::Parser;
+use cli::Args;
+
+mod cli;
+
 fn main() {
-    println!("Hello, world!");
+    let args: Args = Args::parse();
+    let img = image::open(args.img_path).expect("no file found lol");
+    dbg!(img);
 }
