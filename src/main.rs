@@ -4,11 +4,12 @@ use image::GenericImageView;
 use show_image::{create_window, event, ImageInfo, ImageView};
 
 mod cli;
+mod compare_image;
+
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = Args::parse();
     let img = image::open(args.img_path).expect("no file found");
-    // dbg!(img);
 
     // Get the dimensions of the image
     let (width, height) = img.dimensions();
@@ -36,6 +37,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print keyboard events until Escape is pressed, then exit.
     // If the user closes the window, the channel is closed and the loop also exits.
+
+    let compare_data = compare_image::mse(&img, &img);
+    dbg!(compare_data);
+
     for event in window.event_channel()? {
         if let event::WindowEvent::KeyboardInput(event) = event {
             println!("{:#?}", event);
@@ -46,6 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+    // create_image::mse(&img, &img);
 
     Ok(())
 }
