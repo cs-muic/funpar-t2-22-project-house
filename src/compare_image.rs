@@ -2,7 +2,7 @@ use image::{DynamicImage, GenericImageView};
 // use lab::Lab;
 use rayon::iter::*;
 
-pub(crate) fn mse(img1: &DynamicImage, img2: &DynamicImage) -> f32 {
+pub fn compare(img1: &DynamicImage, img2: &DynamicImage) -> f32 {
     use deltae::*;
     use lab::Lab;
 
