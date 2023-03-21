@@ -14,9 +14,7 @@ mod place_shape;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = Args::parse();
     let img = image::open(args.img_path).expect("no file found");
-    // let img = image::open("assets/house.png").expect("no file found");
-
-    make_square(img.clone());
+    let img1 = image::open("assets/img_1.png").expect("no file found");
 
     // Get the dimensions of the image
     let (width, height) = img.dimensions();
@@ -45,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Print keyboard events until Escape is pressed, then exit.
     // If the user closes the window, the channel is closed and the loop also exits.
 
-    let compare_data = compare_image::mse(&img, &img);
+    let compare_data = compare_image::compare(&img, &img1);
     dbg!(compare_data);
 
     for event in window.event_channel()? {
@@ -59,6 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     // create_image::mse(&img, &img);
+    make_square(img);
 
     Ok(())
 }
