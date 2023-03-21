@@ -1,3 +1,4 @@
+use crate::place_shape::make_square;
 use clap::Parser;
 use cli::Args;
 use image::GenericImageView;
@@ -5,11 +6,17 @@ use show_image::{create_window, event, ImageInfo, ImageView};
 
 mod cli;
 mod compare_image;
+mod place_shape;
+
+// pre-commit run --all
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Args = Args::parse();
     let img = image::open(args.img_path).expect("no file found");
+    // let img = image::open("assets/house.png").expect("no file found");
+
+    make_square(img.clone());
 
     // Get the dimensions of the image
     let (width, height) = img.dimensions();
