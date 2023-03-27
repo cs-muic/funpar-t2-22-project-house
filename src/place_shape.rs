@@ -1,6 +1,7 @@
-// use ::rayon::iter::*;
+use ::rayon::iter::*;
 use image::*;
 use rand::Rng;
+use show_image::event::VirtualKeyCode::R;
 
 pub fn make_square(input_image: DynamicImage) -> DynamicImage {
     fn random_number() -> u8 {
@@ -42,4 +43,19 @@ pub fn make_square(input_image: DynamicImage) -> DynamicImage {
     input_image.save("tests/circle.png").unwrap();
 
     input_image
+}
+
+pub fn change_pixels(chunk_of_image: Rgba<u8>) -> Rgba<u8> {
+    fn random_number() -> u8 {
+        let mut rng = rand::thread_rng();
+        let output: u8 = rng.gen_range(0..=255);
+        output
+    }
+    let output = Rgba([
+        random_number(),
+        random_number(),
+        random_number(),
+        random_number(),
+    ]);
+    return output;
 }
