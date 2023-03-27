@@ -1,5 +1,5 @@
 use clap::builder::TypedValueParser;
-use image::{DynamicImage, GenericImageView, Rgba};
+use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 use rand::Rng;
 // use lab::Lab;
 use rayon::iter::*;
@@ -167,6 +167,105 @@ pub fn produce_next_best_shape(
     //     })
     //     .collect();
     return output;
+}
+
+pub struct ShapeInfo(u32, u32, u32, u32, [u8; 4]);
+
+impl ShapeInfo {
+    pub fn make_random(max_x: u32, max_y: u32) -> ShapeInfo {
+        let mut rng = rand::thread_rng();
+
+        let x = rng.gen_range(0..max_x);
+        let y = rng.gen_range(0..max_y);
+
+        let width = if max_x == x {
+            1
+        } else {
+            rng.gen_range(1..max_x - x + 1)
+        };
+
+        let height = if max_y == y {
+            1
+        } else {
+            rng.gen_range(1..max_y - y + 1)
+        };
+
+        let r = rng.gen_range(0..=255);
+        let g = rng.gen_range(0..=255);
+        let b = rng.gen_range(0..=255);
+
+        ShapeInfo(x, y, width, height, [r, g, b, 255])
+    }
+}
+
+pub fn draw(canvas: &mut DynamicImage, shape: ShapeInfo) {
+    for y in shape.1..(shape.1 + shape.3) {
+        for x in shape.0..(shape.0 + shape.2) {
+            let rgb = shape.4;
+            let r = rgb[0];
+            let g = rgb[1];
+            let b = rgb[2];
+            canvas.put_pixel(x, y, Rgba([r, g, b, 255]))
+        }
+    }
+}
+
+pub fn compare_imaginary(
+    target_img: &DynamicImage,
+    canvas: &DynamicImage,
+    shape: &ShapeInfo,
+) -> f32 {
+    use deltae::*;
+    use lab::Lab;
+    let base_image = target_img.pixels();
+    let canvas_image = canvas.pixels();
+
+    #[derive(Clone, Copy)]
+    struct MyLab(f32, f32, f32);
+
+    // Types that implement Into<LabValue> also implement the Delta trait
+    impl From<MyLab> for LabValue {
+        fn from(mylab: MyLab) -> Self {
+            LabValue {
+                l: mylab.0,
+                a: mylab.1,
+                b: mylab.2,
+            }
+        }
+    }
+    // Implement DeltaEq for your own types
+    impl<D: Delta + Copy> DeltaEq<D> for MyLab {}
+
+    let mut diff: f32 = 0f32;
+
+    let ShapeInfo(s_x, s_y, s_w, s_h, s_rgba) = shape;
+
+    let make_lab = |rgba: Rgba<u8>| {
+        let pic = Lab::from_rgba(&rgba.0);
+
+        LabValue {
+            l: pic.l,
+            a: pic.a,
+            b: pic.b,
+        }
+        .validate()
+        .unwrap()
+    };
+
+    let shape_rgb = make_lab(Rgba([s_rgba[0], s_rgba[1], s_rgba[2], 255]));
+
+    for (x, y, rgba) in base_image.into_iter() {
+        let pos_rgb = make_lab(rgba);
+        if (s_x..&(s_x + s_w)).contains(&&x) && (s_y..&(s_y + s_h)).contains(&&y) {
+            diff += DeltaE::new(shape_rgb, pos_rgb, DE2000).value();
+        } else {
+            let canvas_rgb = canvas.get_pixel(x as u32, y as u32);
+            let canvas_pos_lab = make_lab(canvas_rgb);
+            diff += DeltaE::new(canvas_pos_lab, pos_rgb, DE2000).value();
+        }
+    }
+
+    diff
 }
 
 pub fn compare(img1: &DynamicImage, img2: &DynamicImage) -> f32 {
