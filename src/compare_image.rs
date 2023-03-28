@@ -1,6 +1,7 @@
 use clap::builder::TypedValueParser;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
 use rand::Rng;
+use std::collections::HashSet;
 // use lab::Lab;
 use rayon::iter::*;
 
@@ -127,85 +128,75 @@ pub fn best_shapes(
     // println!("whattttt{}",ans);
 }
 
-// pub fn get_next_best(size_coef: f32, imf: &DynamicImage, colors: &Vec<[u8; 4]>) -> (u32, u32, u32, u32, [u8; 4]) {
-//
-// }
-
-pub fn produce_next_best_shape(
-    coords: &Vec<(u32, u32)>,
-    img: &DynamicImage,
-    colors: &Vec<[u8; 4]>,
-    canvas: &DynamicImage,
-) -> Vec<Option<(Vec<(u32, u32)>, [u8; 4])>> {
-    // TODO: Take in the output image and compare the cost of that versus the cost of the new random instead of generating so many squares.
-    let output = coords
-        .chunks(1024)
-        .into_iter()
-        .flat_map(|chunk| {
-            let output = chunk
-                .par_iter()
-                .map(|coord| best_shapes(img, coord, colors, canvas))
-                .collect::<Vec<Option<(Vec<(u32, u32)>, [u8; 4])>>>();
-            output
-        })
-        .collect();
-    // let output = coords
-    //     .into_par_iter()
-    //     .map(|coord| {
-    //         best_shapes(img, coord, colors, canvas)
-    //             // .collect::<Vec<Option<(Vec<(u32, u32)>, [u8; 4])>>>();
-    //     }).collect();
-
-    // let output = coords
-    //     .chunks(1024)
-    //     .into_iter()
-    //     .map(|coords| {
-    //         coords
-    //             .into_par_iter()
-    //             .map(|coord| best_shapes(img, coord, colors, canvas))
-    //             .collect()
-    //     })
-    //     .collect();
-    return output;
-}
-
+#[derive(Debug)]
 pub struct ShapeInfo(u32, u32, u32, u32, [u8; 4]);
 
 impl ShapeInfo {
-    pub fn make_random(max_x: u32, max_y: u32) -> ShapeInfo {
+    // TODO: Take in a palette
+    pub fn make_random(
+        max_x: u32,
+        max_y: u32,
+        original_cost: u32,
+        current_cost: u32,
+        options: &Vec<[u8; 4]>,
+    ) -> ShapeInfo {
         let mut rng = rand::thread_rng();
 
-        let x = rng.gen_range(0..max_x);
-        let y = rng.gen_range(0..max_y);
+        let weighted_max_width = (max_x as f64
+            * ((current_cost as f64 * 2.0 as f64 / original_cost as f64) as f64))
+            as u32;
+        let weighted_max_height = (max_y as f64
+            * ((current_cost as f64 * 2.0 as f64 / original_cost as f64) as f64))
+            as u32;
 
-        let width = if max_x == x {
-            1
+        // println!("weightwidth: {}, weightheight: {}", weighted_max_width, weighted_max_height);
+        let x = rng
+            .gen_range((0 - (weighted_max_width as f32 / 2.0) as i32)..(max_x as i32))
+            .max(0) as u32;
+        let y = rng
+            .gen_range((0 - (weighted_max_height as f32 / 2.0) as i32)..(max_y as i32))
+            .max(0) as u32;
+
+        let width = rng.gen_range(1..(weighted_max_width + 3));
+
+        let width = if x + width >= max_x {
+            max_x - x
         } else {
-            rng.gen_range(1..max_x - x + 1)
+            width - 1
         };
 
-        let height = if max_y == y {
-            1
+        // println!("width: {}", width);
+        let height = rng.gen_range(1..(weighted_max_height + 3));
+
+        let height = if y + height >= max_y {
+            max_y - y
         } else {
-            rng.gen_range(1..max_y - y + 1)
+            height - 1
         };
 
-        let r = rng.gen_range(0..=255);
-        let g = rng.gen_range(0..=255);
-        let b = rng.gen_range(0..=255);
-
-        ShapeInfo(x, y, width, height, [r, g, b, 255])
+        // println!("height: {}", height);
+        // ShapeInfo(x, y, width, height, [r, g, b, 255])
+        ShapeInfo(
+            x,
+            y,
+            width,
+            height,
+            options[rng.gen_range(0..options.len())],
+        )
     }
 }
 
 pub fn draw(canvas: &mut DynamicImage, shape: ShapeInfo) {
     for y in shape.1..(shape.1 + shape.3) {
         for x in shape.0..(shape.0 + shape.2) {
-            let rgb = shape.4;
-            let r = rgb[0];
-            let g = rgb[1];
-            let b = rgb[2];
-            canvas.put_pixel(x, y, Rgba([r, g, b, 255]))
+            // println!("draw");
+            if x < canvas.width() && y < canvas.height() && x >= 0 {
+                let rgb = shape.4;
+                let r = rgb[0];
+                let g = rgb[1];
+                let b = rgb[2];
+                canvas.put_pixel(x, y, Rgba([r, g, b, 255]))
+            }
         }
     }
 }
@@ -214,58 +205,82 @@ pub fn compare_imaginary(
     target_img: &DynamicImage,
     canvas: &DynamicImage,
     shape: &ShapeInfo,
-) -> f32 {
-    use deltae::*;
-    use lab::Lab;
-    let base_image = target_img.pixels();
-    let canvas_image = canvas.pixels();
-
-    #[derive(Clone, Copy)]
-    struct MyLab(f32, f32, f32);
-
-    // Types that implement Into<LabValue> also implement the Delta trait
-    impl From<MyLab> for LabValue {
-        fn from(mylab: MyLab) -> Self {
-            LabValue {
-                l: mylab.0,
-                a: mylab.1,
-                b: mylab.2,
-            }
-        }
-    }
-    // Implement DeltaEq for your own types
-    impl<D: Delta + Copy> DeltaEq<D> for MyLab {}
-
-    let mut diff: f32 = 0f32;
+) -> u32 {
+    let mut diff: u32 = 0u32;
 
     let ShapeInfo(s_x, s_y, s_w, s_h, s_rgba) = shape;
+    //
+    // let shape_rgb_sum = s_rgba[0] + s_rgba[1] + s_rgba[2] + s_rgba[3];
+    //
+    // // x, y, width, height, rgb
+    //
+    // let mut diff_using_shape: f32 = 0.0;
+    // let mut diff_using_canvas: f32 = 0.0;
+    //
+    // for y in shape.1..(shape.1 + shape.3) {
+    //     for x in shape.0..(shape.0 + shape.2) {
+    //         if x < target_img.width() && y < target_img.height() {
+    //             // println!("get_pixel");
+    //             let pos_rgb = target_img.get_pixel(x, y).0;
+    //             let pos_rgb_sum = pos_rgb[0] + pos_rgb[1] + pos_rgb[2] + pos_rgb[3];
+    //             let canvas_pos_rgb = canvas.get_pixel(x, y);
+    //             let canvas_pos_rgb_sum = canvas_pos_rgb[0] + canvas_pos_rgb[1] + canvas_pos_rgb[2] + canvas_pos_rgb[3];
+    //             diff_using_shape += shape_rgb_sum.abs_diff(pos_rgb_sum) as f32;
+    //             diff_using_canvas += canvas_pos_rgb_sum.abs_diff(pos_rgb_sum) as f32;
+    //         }
+    //     }
+    // }
+    //
+    // // If the cost on the canvas was lower than our new image, continue with the canvas
+    // if diff_using_canvas < diff_using_shape {
+    //     return 0.0;
+    // }
+    // // Else, send in the difference that we have to reduce the cost by.
+    // return diff_using_canvas - diff_using_shape;
 
-    let make_lab = |rgba: Rgba<u8>| {
-        let pic = Lab::from_rgba(&rgba.0);
+    //
+    // for (x, y, rgba) in target_img.pixels().into_iter() {
+    //     // let pos_rgb = target_img.get_pixel(x, y).0;
+    //     if (s_x..&(s_x + s_w)).contains(&&x) && (s_y..&(s_y + s_h)).contains(&&y) {
+    //         diff += rgb_difference(&rgba.0, s_rgba) as u64;
+    //     } else {
+    //         let canvas_pos_rgb = canvas.get_pixel(x, y);
+    //         diff += rgb_difference(&rgba.0, &canvas_pos_rgb.0) as u64;
+    //     }
+    // }
 
-        LabValue {
-            l: pic.l,
-            a: pic.a,
-            b: pic.b,
-        }
-        .validate()
-        .unwrap()
-    };
+    let mut diff_with_shape: u32 = 0;
+    let mut diff_with_canvas: u32 = 0;
 
-    let shape_rgb = make_lab(Rgba([s_rgba[0], s_rgba[1], s_rgba[2], 255]));
-
-    for (x, y, rgba) in base_image.into_iter() {
-        let pos_rgb = make_lab(rgba);
-        if (s_x..&(s_x + s_w)).contains(&&x) && (s_y..&(s_y + s_h)).contains(&&y) {
-            diff += DeltaE::new(shape_rgb, pos_rgb, DE2000).value();
-        } else {
-            let canvas_rgb = canvas.get_pixel(x as u32, y as u32);
-            let canvas_pos_lab = make_lab(canvas_rgb);
-            diff += DeltaE::new(canvas_pos_lab, pos_rgb, DE2000).value();
+    for y in shape.1..(shape.1 + shape.3) {
+        for x in shape.0..(shape.0 + shape.2) {
+            let pixl = &target_img.get_pixel(x, y).0;
+            diff_with_shape += rgb_difference(pixl, s_rgba) as u32;
+            diff_with_canvas += rgb_difference(pixl, &canvas.get_pixel(x, y).0) as u32;
         }
     }
 
-    diff
+    if diff_with_shape < diff_with_canvas {
+        diff_with_canvas - diff_with_shape
+    } else {
+        0
+    }
+    // diff
+}
+
+pub fn rgb_difference(img1: &[u8; 4], img2: &[u8; 4]) -> u32 {
+    img1[0].abs_diff(img2[0]) as u32
+        + img1[1].abs_diff(img2[1]) as u32
+        + img1[2].abs_diff(img2[2]) as u32
+        + img1[3].abs_diff(img2[3]) as u32
+}
+
+pub fn cost(img1: &DynamicImage, img2: &DynamicImage) -> u32 {
+    let mut output: u32 = 0;
+    for (x, y, rgba) in img1.pixels() {
+        output += rgb_difference(&rgba.0, &img2.get_pixel(x, y).0) as u32;
+    }
+    output
 }
 
 pub fn compare(img1: &DynamicImage, img2: &DynamicImage) -> f32 {
