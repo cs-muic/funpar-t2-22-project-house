@@ -23,6 +23,7 @@ impl ShapeInfo {
         let x = rng
             .gen_range((0 - (weighted_max_width as f32 / 2.0) as i32)..(max_x as i32))
             .max(0) as u32;
+
         let y = rng
             .gen_range((0 - (weighted_max_height as f32 / 2.0) as i32)..(max_y as i32))
             .max(0) as u32;
@@ -54,6 +55,42 @@ impl ShapeInfo {
             options[rng.gen_range(0..options.len())],
         )
     }
+    // for using edge to make shape
+    // pub fn make_using_edge(
+    //     max_x: u32,
+    //     max_y: u32,
+    //     original_cost: u32,
+    //     current_cost: u32,
+    //     options: &Vec<[u8; 4]>,
+    //     edge_detection: &Vec<(u32, u32)>,
+    // ) -> ShapeInfo {
+    //     let mut rng = rand::thread_rng();
+    //
+    //     let weighted_max_width =
+    //         (max_x as f64 * (current_cost as f64 * 2.0_f64 / original_cost as f64)) as u32;
+    //     let weighted_max_height =
+    //         (max_y as f64 * (current_cost as f64 * 2.0_f64 / original_cost as f64)) as u32;
+    //     let (x, y) = edge_detection[rng.gen_range(0..edge_detection.len())];
+    //     let width = rng.gen_range(1..(weighted_max_width + 3));
+    //     let width = if x + width >= max_x {
+    //         max_x - x
+    //     } else {
+    //         width - 1
+    //     };
+    //     let height = rng.gen_range(1..(weighted_max_height + 3));
+    //     let height = if y + height >= max_y {
+    //         max_y - y
+    //     } else {
+    //         height - 1
+    //     };
+    //     ShapeInfo(
+    //         x,
+    //         y,
+    //         width,
+    //         height,
+    //         options[rng.gen_range(0..options.len())],
+    //     )
+    // }
 }
 
 pub fn draw(canvas: &mut DynamicImage, shape: ShapeInfo) {
