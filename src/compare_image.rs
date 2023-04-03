@@ -114,6 +114,26 @@ pub fn compare_imaginary(
     canvas: &DynamicImage,
     shape: &ShapeInfo,
 ) -> u32 {
+    // this is the par version. by the way it's seem to make thing slower.
+    // use std::sync::atomic::{AtomicU32, Ordering};
+    // use rayon::iter::*;
+    // let ShapeInfo(_s_x, _s_y, _s_w, _s_h, s_rgba) = shape;
+    // let mut diff_with_shape = AtomicU32::new(0);
+    // let mut diff_with_canvas = AtomicU32::new(0);
+    //
+    // (shape.1..(shape.1 + shape.3)).into_par_iter().for_each(|y| {
+    //     (shape.0..(shape.0 + shape.2)).into_iter().for_each(|x| {
+    //         let pixl = &target_img.get_pixel(x, y).0;
+    //         diff_with_shape.fetch_add(rgb_difference(pixl, s_rgba), Ordering::SeqCst);
+    //         diff_with_canvas.fetch_add(rgb_difference(pixl, &canvas.get_pixel(x, y).0), Ordering::SeqCst);
+    //     })
+    // });
+    // if diff_with_shape.load(Ordering::SeqCst) < diff_with_canvas.load(Ordering::SeqCst) {
+    //     diff_with_canvas.load(Ordering::SeqCst) - diff_with_shape.load(Ordering::SeqCst)
+    // } else {
+    //     0
+    // }
+
     let ShapeInfo(_s_x, _s_y, _s_w, _s_h, s_rgba) = shape;
     let mut diff_with_shape: u32 = 0;
     let mut diff_with_canvas: u32 = 0;
